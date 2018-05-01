@@ -1,0 +1,135 @@
+{
+	"type": "part",
+	
+	"itemCosts": {
+		"low-density-structure": 100,
+	},
+}
+{
+	"type": "part",
+	"moduleName": "ModuleReactionWheel",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"rocket-control-unit": 100,
+	},
+}
+{
+	"type": "part",
+	"moduleName": "ModuleDeployableSolarPanel",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"solar-panel": 100,
+	},
+}
+{
+	"type": "part",
+	"name": "rtg",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"uranium-238": 2000,
+	},
+}
+{
+	"type": "part",
+	"containsResource": "ElectricCharge",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"accumulator": 100,
+	},
+}
+{
+	"type": "part",
+	"moduleName": "ModuleResourceHarvester",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"electric-mining-drill": 100,
+	},
+}
+{
+	"type": "part",
+	"name": "ISRU",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"electric-furnace": 100,
+	},
+}
+{
+	"type": "part",
+	"name": "MiniISRU",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"electric-furnace": 100,
+	},
+}
+{
+	"type": "part",
+	"moduleName": "ModuleDataTransmitter",
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"radar": 100,
+	},
+}
+{
+	"type": "part",
+	"moduleName": "ModuleCommand",
+	
+	"nonCrewedOnly": true,
+
+	"itemCosts": {
+		"low-density-structure": 100,
+		"processing-unit": 100,
+	},
+}
+{
+	"type": "part",
+	"moduleName": "ModuleCommand",
+	
+	"crewedOnly": true,
+
+	"itemCosts": {
+		"low-density-structure": 100,
+	},
+}
+
+# ----------------------------
+
+{
+	"type": "resource",
+	"name": "LiquidFuel",
+	
+	"itemCosts": {
+		"rocket-fuel": 50,
+	},
+}
+{
+	"type": "resource",
+	"name": "Oxidizer",
+	
+	"itemCosts": {
+		"rocket-fuel": 50,
+	},
+}
+{
+	"type": "resource",
+	"name": "MonoPropellant",
+	
+	"itemCosts": {
+		"rocket-fuel": 50,
+	},
+}
+{
+	"type": "resource",
+	"name": "SolidFuel",
+	
+	"itemCosts": {
+		"explosives": 50,
+	},
+}
