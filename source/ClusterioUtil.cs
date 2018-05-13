@@ -12,7 +12,7 @@ namespace XenoIndustry
 {
     public static class ClusterioUtil
     {
-        public static IEnumerator GetClusterioInventory(Dictionary<string, int> clusterioInventory)
+        /*public static IEnumerator GetClusterioInventory(Dictionary<string, int> clusterioInventory)
         {
             string apiRequest = "/api/inventory";
 
@@ -77,10 +77,10 @@ namespace XenoIndustry
             }
         }
 
-        public static IEnumerator RemoveItemsFromClusterio(MonoBehaviour caller, Dictionary<string, int> clusterioInventory, string itemName, int count, Action<bool> onFinished = null)
+        public static IEnumerator RemoveItemsFromClusterio(Dictionary<string, int> clusterioInventory, string itemName, int count, Action<bool> onFinished = null)
         {
             // First, we need to see what items are stored in the Clusterio server, and wait for that request to be finished
-            yield return caller.StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+            yield return XenoIndustryCore.instance.StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
 
             // Don't do a remove request if there's not enough items
             if (clusterioInventory[itemName] < count)
@@ -115,6 +115,6 @@ namespace XenoIndustry
                     onFinished(false);
                 }
             }
-        }
+        }*/
     }
 }

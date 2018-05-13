@@ -1,8 +1,3 @@
 {
-	"masterIP": "localhost",
-	"masterPort": "8080",
-	"fundsPerLDS": "100",
-	"fuelPerRocketFuel": "50",
-	"sciencePerSciencePack": "1",
 	"debug": "true",
 }

@@ -45,7 +45,7 @@ namespace XenoIndustry
             GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
             GameEvents.onGUIApplicationLauncherDestroyed.Add(OnGUIApplicationLauncherDestroyed);
 
-            StreamReader reader = new StreamReader(MOD_PATH + "config.json");
+            StreamReader reader = new StreamReader(MOD_PATH + "science.json");
 
             if (reader != null)
             {
@@ -70,7 +70,7 @@ namespace XenoIndustry
 
         private void OnGUIAppLauncherReady()
         {
-            if (ApplicationLauncher.Ready && stockToolbarButton == null)
+            if (ApplicationLauncher.Ready && stockToolbarButton == null && H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>() != null && H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
             {
                 stockToolbarButton = ApplicationLauncher.Instance.AddModApplication(
                     OnToolbarClusterioButtonOn,
@@ -122,9 +122,20 @@ namespace XenoIndustry
                 // Periodically update Clusterio inventory if not ingame
                 if (HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.EDITOR || HighLogic.LoadedScene == GameScenes.TRACKSTATION)
                 {
-                    if (ClusterioConnector.IsConnected())
+                    string bodyName;
+
+                    if (FlightGlobals.ActiveVessel != null)
                     {
-                        StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+                        bodyName = FlightGlobals.ActiveVessel.mainBody.bodyName;
+                    }
+                    else
+                    {
+                        bodyName = "Kerbin";
+                    }
+
+                    if (XenoIndustrySignpost.IsConnected(bodyName))
+                    {
+                        StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
                     }
                 }
             }
@@ -134,15 +145,21 @@ namespace XenoIndustry
         {
             GUILayout.BeginVertical();
 
-            if (!ClusterioConnector.IsConnected())
+            string bodyName = "Kerbin"; // Science transfer can only be done on Kerbin right now
+
+            if (!XenoIndustrySignpost.BodyHasServer(bodyName))
+            {
+                GUILayout.Label("This celestial body has no associated master server.");
+            }
+            else if (!XenoIndustrySignpost.IsConnected(bodyName))
             {
                 GUILayout.Label("Cannot connect to Clusterio master server!");
 
-                GUILayout.Label("Error: " + ClusterioConnector.GetConnectionError());
+                GUILayout.Label("Error: " + XenoIndustrySignpost.GetConnectionError(bodyName));
 
                 if (GUILayout.Button("Refresh connection"))
                 {
-                    StartCoroutine(ClusterioConnector.RefreshConnection());
+                    XenoIndustrySignpost.RefreshConnection(bodyName);
                 }
             }
             else if (ResearchAndDevelopment.Instance == null)
@@ -176,7 +193,7 @@ namespace XenoIndustry
 
                     if (GUILayout.Button("Refresh Clusterio inventory"))
                     {
-                        StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+                        StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
                     }
                 }
             }
@@ -194,7 +211,9 @@ namespace XenoIndustry
 
             ClusterioMessage resultMessage = new ClusterioMessage();
 
-            yield return StartCoroutine(ClusterioUtil.AddItemsToClusterio("space-science-pack", sciencePackTransferAmount, (success) => 
+            string bodyName = "Kerbin"; // Science packs can only be converted at Kerbin for now
+
+            yield return StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "space-science-pack", sciencePackTransferAmount, (success) => 
                 {
                     if (success)
                     {

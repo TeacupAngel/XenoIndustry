@@ -31,98 +31,125 @@ namespace XenoIndustry
         CONNECTION_ERROR // An error happened in the connection process
     }
 
+    public class ClusterioConnection
+    {
+        public string masterIP;
+        public string masterPort;
+        public string masterAuthToken = null;
+
+        public ClusterioConnectionStatus connectionStatus = ClusterioConnectionStatus.NO_CONNECTION;
+        public string connectionError;
+
+        public ClusterioConnection(string masterIP, string masterPort, string masterAuthToken = null)
+        {
+            this.masterIP = masterIP;
+            this.masterPort = masterPort;
+
+            if (masterAuthToken != null)
+            {
+                this.masterAuthToken = masterAuthToken;
+            }
+        }
+    }
+
     public static class ClusterioConnector
     {
-        public static string masterIP { get; private set; }
-        public static string masterPort { get; private set; }
-        public static string masterAuthToken { get; private set; }
-
-        private static ClusterioConnectionStatus connectionStatus;
-        private static string connectionError;
-
-        private static MonoBehaviour mbLink;
-
-        public static void ConntectToMonoBehaviour(MonoBehaviour monobehaviour)
-        {
-            mbLink = monobehaviour;
-
-            Debug.Log("ClusterioConnector: connected to Unity MonoBehaviour");
-        }
+        private static Dictionary<string, ClusterioConnection> connections = new Dictionary<string, ClusterioConnection>();
 
         public static void ConntectToMaster(string IP, string port, string authToken = null)
         {
             Debug.Log(String.Format("ClusterioConnector: connecting to master at address {0}:{1}", IP, port));
 
-            masterIP = IP;
-            masterPort = port;
-            masterAuthToken = authToken;
+            string masterAddress = IP + ":" + port;
 
-            mbLink.StartCoroutine(RefreshConnection());
+            ClusterioConnection connection = new ClusterioConnection(IP, port, authToken);
+
+            connections[masterAddress] = connection;
+
+            XenoIndustryCore.instance.StartCoroutine(RefreshConnection(connection));
         }
 
-        public static IEnumerator RefreshConnection()
+        public static void RefreshConnectionFromAddress(string masterIP, string masterPort)
         {
-            if (connectionStatus == ClusterioConnectionStatus.CONNECTING || connectionStatus == ClusterioConnectionStatus.REFRESHING)
+            string masterAddress = masterIP + ":" + masterPort;
+
+            if (!connections.ContainsKey(masterAddress))
+            {
+                return;
+            }
+
+            ClusterioConnection connection = connections[masterAddress];
+
+            XenoIndustryCore.instance.StartCoroutine(RefreshConnection(connection));
+        }
+
+        public static IEnumerator RefreshConnection(ClusterioConnection connection)
+        {
+            if (connection.connectionStatus == ClusterioConnectionStatus.CONNECTING || connection.connectionStatus == ClusterioConnectionStatus.REFRESHING)
             {
                 yield break;
             }
 
-            if (mbLink == null)
+            if (XenoIndustryCore.instance == null)
             {
                 Debug.Log("ClusterioConnector: not connected to Unity MonoBehaviour! Cannot check connection to Clusterio server");
                 yield break;
             }
 
-            if (connectionStatus == ClusterioConnectionStatus.CONNECTION_SUCCESS)
+            if (connection.connectionStatus == ClusterioConnectionStatus.CONNECTION_SUCCESS)
             {
-                connectionStatus = ClusterioConnectionStatus.REFRESHING;
+                connection.connectionStatus = ClusterioConnectionStatus.REFRESHING;
             }
             else
             {
-                connectionStatus = ClusterioConnectionStatus.CONNECTING;
+                connection.connectionStatus = ClusterioConnectionStatus.CONNECTING;
             }
 
-            WWW www = new WWW(masterIP + ":" + masterPort);
+            WWW www = new WWW(connection.masterIP + ":" + connection.masterPort);
 
             yield return www;
 
             if (www.error != null)
             {
-                connectionStatus = ClusterioConnectionStatus.CONNECTION_ERROR;
-                connectionError = www.error;
+                connection.connectionStatus = ClusterioConnectionStatus.CONNECTION_ERROR;
+                connection.connectionError = www.error;
 
                 Debug.Log("ClusterioConnector: cannot connect to master server! Error: " + www.error);
             }
             else
             {
-                connectionStatus = ClusterioConnectionStatus.CONNECTION_SUCCESS;
+                connection.connectionStatus = ClusterioConnectionStatus.CONNECTION_SUCCESS;
             }
         }
 
-        private static bool CanSendRequest(ClusterioMessage resultMessage)
+        private static ClusterioConnection GetRequestClusterioConnection(string masterIP, string masterPort, ClusterioMessage resultMessage)
         {
-            if (masterIP == null || masterPort == null)
+            string masterAddress = masterIP + ":" + masterPort;
+
+            if (!connections.ContainsKey(masterAddress))
             {
                 resultMessage.result = ClusterioMessageResult.ERROR;
                 resultMessage.text = "Master server connection not set";
 
                 Debug.Log("ClusterioConnector: cannot send requests when master IP or port aren't set!");
-                return false;
+                return null;
             }
 
-            if (!IsConnected())
+            if (!IsConnected(masterIP, masterPort))
             {
                 resultMessage.result = ClusterioMessageResult.ERROR;
                 resultMessage.text = "No master server connection";
 
                 Debug.Log("ClusterioConnector: cannot send requests, not connected to master server");
-                return false;
+                return null;
             }
 
-            return true;
+            ClusterioConnection connection = connections[masterAddress];
+
+            return connection;
         }
 
-        private static void ReturnRequestMessage(UnityWebRequest webRequest, ClusterioMessage resultMessage)
+        private static void ReturnRequestMessage(ClusterioConnection connection, UnityWebRequest webRequest, ClusterioMessage resultMessage)
         {
             if (webRequest.isHttpError || webRequest.responseCode == 0) // Response code is 0 when server cannot be reached
             {
@@ -131,7 +158,7 @@ namespace XenoIndustry
 
                 Debug.Log("ClusterioConnector: request failed! Error: " + webRequest.error);
 
-                mbLink.StartCoroutine(RefreshConnection());
+                XenoIndustryCore.instance.StartCoroutine(RefreshConnection(connection));
             }
             else
             {
@@ -140,52 +167,74 @@ namespace XenoIndustry
             }
         }
 
-        public static IEnumerator SendPostRequest(string apiCall, ClusterioMessage resultMessage, Dictionary<string, string> sendValues = null)
+        public static IEnumerator SendPostRequest(string masterIP, string masterPort, string apiCall, ClusterioMessage resultMessage, Dictionary<string, string> sendValues = null)
         {
-            if (!CanSendRequest(resultMessage))
+            ClusterioConnection connection = GetRequestClusterioConnection(masterIP, masterPort, resultMessage);
+
+            if (connection == null)
             {
                 yield break;
             }
 
             UnityWebRequest webRequest = UnityWebRequest.Post(masterIP + ":" + masterPort + "/" + apiCall, sendValues);
 
-            if (masterAuthToken != null)
+            if (connection.masterAuthToken != null)
             {
-                webRequest.SetRequestHeader("x-access-token", masterAuthToken);
+                webRequest.SetRequestHeader("x-access-token", connection.masterAuthToken);
             }
             
             yield return webRequest.Send();
 
-            ReturnRequestMessage(webRequest, resultMessage);
+            ReturnRequestMessage(connection, webRequest, resultMessage);
         }
 
-        public static IEnumerator SendGetRequest(string apiCall, ClusterioMessage resultMessage)
+        public static IEnumerator SendGetRequest(string masterIP, string masterPort, string apiCall, ClusterioMessage resultMessage)
         {
-            if (!CanSendRequest(resultMessage))
+            ClusterioConnection connection = GetRequestClusterioConnection(masterIP, masterPort, resultMessage);
+
+            if (connection == null)
             {
                 yield break;
             }
 
             UnityWebRequest webRequest = UnityWebRequest.Get(masterIP + ":" + masterPort + "/" + apiCall);
 
-            if (masterAuthToken != null)
+            if (connection.masterAuthToken != null)
             {
-                webRequest.SetRequestHeader("x-access-token", masterAuthToken);
+                webRequest.SetRequestHeader("x-access-token", connection.masterAuthToken);
             }
 
             yield return webRequest.Send();
 
-            ReturnRequestMessage(webRequest, resultMessage);
+            ReturnRequestMessage(connection, webRequest, resultMessage);
         }
 
-        public static bool IsConnected()
+        public static bool IsConnected(string masterIP, string masterPort)
         {
-            return connectionStatus == ClusterioConnectionStatus.CONNECTION_SUCCESS || connectionStatus == ClusterioConnectionStatus.REFRESHING;
+            string masterAddress = masterIP + ":" + masterPort;
+
+            if (!connections.ContainsKey(masterAddress))
+            {
+                return false;
+            }
+
+            ClusterioConnection connection = connections[masterAddress];
+
+            return connection.connectionStatus == ClusterioConnectionStatus.CONNECTION_SUCCESS || connection.connectionStatus == ClusterioConnectionStatus.REFRESHING;
         }
 
-        public static string GetConnectionError()
+        public static string GetConnectionError(string masterIP, string masterPort)
         {
-            return (connectionStatus == ClusterioConnectionStatus.CONNECTION_ERROR) ? connectionError : null;
+            string masterAddress = masterIP + ":" + masterPort;
+
+            if (!connections.ContainsKey(masterAddress))
+            {
+                return null;
+            }
+
+            ClusterioConnection connection = connections[masterAddress];
+
+            return (connection.connectionStatus == ClusterioConnectionStatus.CONNECTION_ERROR) ? connection.connectionError : null;
         }
     }
 }

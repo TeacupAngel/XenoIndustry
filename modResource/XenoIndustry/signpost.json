@@ -1,0 +1,13 @@
+{
+	"Kerbin": {
+		"masterIP": "localhost",
+		"masterPort": "8080",
+		"masterAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFwaSIsImlhdCI6MTUyNTUwOTc2NCwiZXhwIjoxNTU3MDQ1NzY0fQ.46TL081FR9FpCeXxqrjJLBpVLy6w9co6ZIdBW6SpIpM",
+		},
+
+	"Mun": {
+		"masterIP": "localhost",
+		"masterPort": "8081",
+		"masterAuthToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImFwaSIsImlhdCI6MTUyNTY4MjI0MiwiZXhwIjoxNTU3MjE4MjQyfQ.ZQr3LoMQZrIQ_s0a4rbLf5aWXfErdQb7bWtnyzaLB9Q",
+		},
+}

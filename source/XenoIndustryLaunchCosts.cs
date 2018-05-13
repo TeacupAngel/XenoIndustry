@@ -129,7 +129,7 @@ namespace XenoIndustry
                             }
                             else
                             {
-                                foreach (KeyValuePair<string, JSONNode> itemNode in ruleNode["itemCosts"].AsObject.ChildrenKeyValuePairs)
+                                foreach (KeyValuePair<string, JSONNode> itemNode in ruleNode["itemCosts"].AsObject)
                                 {
                                     string name = itemNode.Key;
                                     int count = itemNode.Value.AsInt;
@@ -163,7 +163,7 @@ namespace XenoIndustry
                             }
                             else
                             {
-                                foreach (KeyValuePair<string, JSONNode> itemNode in ruleNode["itemCosts"].AsObject.ChildrenKeyValuePairs)
+                                foreach (KeyValuePair<string, JSONNode> itemNode in ruleNode["itemCosts"].AsObject)
                                 {
                                     string name = itemNode.Key;
                                     int count = itemNode.Value.AsInt;
@@ -197,17 +197,22 @@ namespace XenoIndustry
 
         private void OnGameSceneSwitchRequested(GameEvents.FromToAction<GameScenes, GameScenes> sceneSwitch)
         {
-            if (toolbarButton != null)
+            if (H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
             {
-                toolbarButton.SetFalse();
-            }
-
-            // If the player has reverted to VAB or SPH, refund the spent items
-            if (sceneSwitch.from == GameScenes.FLIGHT && sceneSwitch.to == GameScenes.EDITOR)
-            {
-                foreach (KeyValuePair<string, int> kvPair in latestLaunchCosts)
+                if (toolbarButton != null)
                 {
-                    StartCoroutine(ClusterioUtil.AddItemsToClusterio(kvPair.Key, kvPair.Value));
+                    toolbarButton.SetFalse();
+                }
+
+                // If the player has reverted to VAB or SPH, refund the spent items
+                if (sceneSwitch.from == GameScenes.FLIGHT && sceneSwitch.to == GameScenes.EDITOR)
+                {
+                    string bodyName = "Kerbin"; // Only launches from Kerbin are possible at this point
+
+                    foreach (KeyValuePair<string, int> kvPair in latestLaunchCosts)
+                    {
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, kvPair.Key, kvPair.Value));
+                    }
                 }
             }
         }
@@ -215,7 +220,10 @@ namespace XenoIndustry
         private void OnGUILaunchScreenSpawn(GameEvents.VesselSpawnInfo e)
         {
             //onGUILaunchScreenSpawn is called before VesselSpawnDialog's Start() happens, but we want to wait after it's done so that we can replace
-            StartCoroutine(ReplaceLaunchButtonFunction());
+            if (H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
+            {
+                StartCoroutine(ReplaceLaunchButtonFunction());
+            }
         }
 
         IEnumerator ReplaceLaunchButtonFunction()
@@ -248,7 +256,7 @@ namespace XenoIndustry
         {
             Debug.Log("ClusterioTest: onLevelWasLoadedGUIReady");
 
-            if (gameScene == GameScenes.EDITOR)
+            if (gameScene == GameScenes.EDITOR && H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
             {
                 EditorLogic.fetch.launchBtn.onClick.RemoveAllListeners();
                 EditorLogic.fetch.launchBtn.onClick.AddListener(() => { StartCoroutine(ClusterioPreflightResourceCheck()); }); // originalAction: EditorLogic.fetch.launchVessel
@@ -273,37 +281,45 @@ namespace XenoIndustry
 
         private void OnEditorShipModified(ShipConstruct shipConstruct)
         {
-            CalculateLaunchCosts(ref latestLaunchCosts);
+            if (H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
+            {
+                CalculateLaunchCosts(ref latestLaunchCosts);
+            }
         }
 
         private void OnVesselRecovered(ProtoVessel recoveredVessel, bool quick)
         {
-            Dictionary<string, int> recoveredResources = new Dictionary<string, int>();
-
-            CalculateLaunchCosts(ref recoveredResources, recoveredVessel);
-
-            if (recoveredResources.Count > 0)
+            if (H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
             {
-                string message = "Following resources have been recovered: \n";
+                Dictionary<string, int> recoveredResources = new Dictionary<string, int>();
 
-                foreach (KeyValuePair<string, int> kvPair in recoveredResources)
+                CalculateLaunchCosts(ref recoveredResources, recoveredVessel);
+
+                if (recoveredResources.Count > 0)
                 {
-                    message += String.Format("\n {0} {1}", kvPair.Value, kvPair.Key);
+                    string message = "Following resources have been recovered: \n";
 
-                    StartCoroutine(ClusterioUtil.AddItemsToClusterio(kvPair.Key, kvPair.Value));
-                }
+                    string bodyName = "Kerbin"; // Recovery is only possible on Kerbin for now
 
-                message += "\n";
+                    foreach (KeyValuePair<string, int> kvPair in recoveredResources)
+                    {
+                        message += String.Format("\n {0} {1}", kvPair.Value, kvPair.Key);
 
-                if (!quick)
-                {
-                    MultiOptionDialog dialog = new MultiOptionDialog("ClusterioResourceRecovery", message, "Recovery successful", UISkinManager.GetSkin("KSP window 7"),
-                        new DialogGUIBase[]
-                        {
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, kvPair.Key, kvPair.Value));
+                    }
+
+                    message += "\n";
+
+                    if (!quick)
+                    {
+                        MultiOptionDialog dialog = new MultiOptionDialog("ClusterioResourceRecovery", message, "Recovery successful", UISkinManager.GetSkin("KSP window 7"),
+                            new DialogGUIBase[]
+                            {
                         new DialogGUIButton("Continue", null)
-                        });
+                            });
 
-                    PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), dialog, false, null);
+                        PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), dialog, false, null);
+                    }
                 }
             }
         }
@@ -312,7 +328,9 @@ namespace XenoIndustry
         {
             Debug.Log("XenoIndustryLaunchCosts: PreflightResourceCheck");
 
-            yield return StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+            string bodyName = "Kerbin"; // Launching only works on Kerbin for now
+
+            yield return StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
 
             CalculateLaunchCosts(ref latestLaunchCosts);
 
@@ -487,18 +505,12 @@ namespace XenoIndustry
 
         private void ApplyPartCostRules(AvailablePart part, float cost, ref Dictionary<string, int> launchCosts)
         {
-            Debug.Log(String.Format("XenoIndustryLaunchCosts: * testing part {0} *", part.name));
-
             XenoIndustryLaunchCostsPartRule finalRule = null;
 
             foreach (XenoIndustryLaunchCostsPartRule rule in partCostRules)
             {
-                Debug.Log("XenoIndustryLaunchCosts: -----");
-                Debug.Log("XenoIndustryLaunchCosts: trying next rule");
-
                 if (rule.partName != null && part.name != rule.partName)
                 {
-                    Debug.Log(String.Format("XenoIndustryLaunchCosts: rule failed due to name mismatch ({0} - {1})", part.name, rule.partName));
                     continue;
                 }
 
@@ -517,7 +529,6 @@ namespace XenoIndustry
 
                     if (!hasModule)
                     {
-                        Debug.Log(String.Format("XenoIndustryLaunchCosts: rule failed due to missing module of type {0}", rule.moduleName));
                         continue;
                     }
                 }
@@ -537,29 +548,25 @@ namespace XenoIndustry
 
                     if (!hasResource)
                     {
-                        Debug.Log(String.Format("XenoIndustryLaunchCosts: rule failed due to missing resource of type {0}", rule.containsResource));
                         continue;
                     }
                 }
 
                 if (part.partPrefab.CrewCapacity > 0 && rule.nonCrewedOnly)
                 {
-                    Debug.Log(String.Format("XenoIndustryLaunchCosts: rule failed due to being non-crewed only, while crew capacity is {0}", part.partPrefab.CrewCapacity));
                     continue;
                 }
                 else if (part.partPrefab.CrewCapacity == 0 && rule.crewedOnly)
                 {
-                    Debug.Log(String.Format("XenoIndustryLaunchCosts: rule failed due to being crewed only, while crew capacity is {0}", part.partPrefab.CrewCapacity));
                     continue;
                 }
 
                 finalRule = rule;
-                Debug.Log("XenoIndustryLaunchCosts: rule has passed");
             }
 
             if (finalRule == null)
             {
-                Debug.Log("XenoIndustryLaunchCosts: no rule has passed, part will not be counted");
+                Debug.Log("XenoIndustryLaunchCosts: no rule has passed, part cannot be counted into final cost");
                 return;
             }
 
@@ -581,28 +588,21 @@ namespace XenoIndustry
 
         private void ApplyResourceCostRules(string resourceName, float amount, ref Dictionary<string, int> launchCosts)
         {
-            Debug.Log(String.Format("XenoIndustryLaunchCosts: * testing resource {0} *", resourceName));
-
             XenoIndustryLaunchCostsResourceRule finalRule = null;
 
             foreach (XenoIndustryLaunchCostsResourceRule rule in resourceCostRules)
             {
-                Debug.Log("XenoIndustryLaunchCosts: -----");
-                Debug.Log("XenoIndustryLaunchCosts: trying next rule");
-
                 if (resourceName != null && resourceName != rule.resourceName)
                 {
-                    Debug.Log(String.Format("XenoIndustryLaunchCosts: rule failed due to name mismatch ({0} - {1})", resourceName, rule.resourceName));
                     continue;
                 }
 
                 finalRule = rule;
-                Debug.Log("XenoIndustryLaunchCosts: rule has passed");
             }
 
             if (finalRule == null)
             {
-                Debug.Log("XenoIndustryLaunchCosts: no rule has passed, resource will not be counted");
+                Debug.Log("XenoIndustryLaunchCosts: no rule has passed, resource cannot be counted in vessel cost");
                 return;
             }
 
@@ -647,61 +647,13 @@ namespace XenoIndustry
 
         private void DeductLaunchPrice()
         {
+            string bodyName = "Kerbin"; // Only launches from Kerbin are possible at this point
+
             foreach (KeyValuePair<string, int> kvPair in latestLaunchCosts)
             {
-                StartCoroutine(ClusterioUtil.RemoveItemsFromClusterio(this, clusterioInventory, kvPair.Key, kvPair.Value));
+                StartCoroutine(XenoIndustrySignpost.RemoveItemsFromClusterio(bodyName, clusterioInventory, kvPair.Key, kvPair.Value));
             }
         }
-
-        /*private void ShowDialog()
-        {
-            MultiOptionDialog dialog = new MultiOptionDialog("InsufficientClusterioResources", "Message", "Title!", UISkinManager.GetSkin("KSP window 7"),
-                new DialogGUIBase[] 
-                {
-                    new DialogGUIButton("OptionText", new Callback(this.Cancel))
-                });
-
-            PopupDialog.SpawnPopupDialog(new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), dialog, true, null, true, string.Empty);
-
-            InputLockManager.SetControlLock(ControlTypes.KSC_ALL, "launchSiteFacility");
-        }
-
-        private void Cancel()
-        {
-            InputLockManager.RemoveControlLock("launchSiteFacility");
-        }*/
-
-        /*private void CreateToolbarButton()
-        {
-            if (ApplicationLauncher.Instance != null && ApplicationLauncher.Ready)
-            {
-                Debug.Log("ClusterioTest: ApplicationLauncher is ready");
-                OnGUIAppLauncherReady();
-            }
-            else
-            {
-                Debug.Log("ClusterioTest: ApplicationLauncher is not ready");
-                GameEvents.onGUIApplicationLauncherReady.Add(OnGUIAppLauncherReady);
-            }
-        }*/
-
-        /*private void OnGUIAppLauncherReady()
-        {
-            if (ApplicationLauncher.Ready && toolbarButton == null)
-            {
-                toolbarButton = ApplicationLauncher.Instance.AddModApplication(
-                    OnToolbarButtonOn,
-                    OnToolbarButtonOff,
-                    null,
-                    null,
-                    null,
-                    null,
-                    ApplicationLauncher.AppScenes.VAB | ApplicationLauncher.AppScenes.SPH,
-                    (Texture)GameDatabase.Instance.GetTexture(RESOURCE_PATH + "icon_clusterio", false));
-
-                if (toolbarButton == null) Debug.Log("XenoIndustryLaunchCosts: could not register stock toolbar button!");
-            }
-        }*/
 
         private void OnGUIApplicationLauncherDestroyed()
         {
@@ -726,7 +678,7 @@ namespace XenoIndustry
         {
             if (windowVisible)
             {
-                windowRect = GUILayout.Window(22348, windowRect, OnWindowInternal, "Clusterio Vessel Costs");
+                windowRect = GUILayout.Window(22348, windowRect, OnWindowInternal, "XenoIndustry Vessel Costs");
             }
         }
 
@@ -739,9 +691,20 @@ namespace XenoIndustry
                 // Only update in the editor, since that's the only place where we need to actively track the inventory.
                 if (HighLogic.LoadedScene == GameScenes.EDITOR)
                 {
-                    if (ClusterioConnector.IsConnected())
+                    string bodyName;
+
+                    if (FlightGlobals.ActiveVessel != null)
                     {
-                        StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+                        bodyName = FlightGlobals.ActiveVessel.mainBody.bodyName;
+                    }
+                    else
+                    {
+                        bodyName = "Kerbin";
+                    }
+
+                    if (XenoIndustrySignpost.IsConnected(bodyName))
+                    {
+                        StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
                     }
                 }
             }
@@ -751,15 +714,21 @@ namespace XenoIndustry
         {
             GUILayout.BeginVertical();
 
-            if (!ClusterioConnector.IsConnected())
+            string bodyName = "Kerbin"; // Since this is for launching, only Kerbin is possible for now
+
+            if (!XenoIndustrySignpost.BodyHasServer(bodyName))
+            {
+                GUILayout.Label("This celestial body has no associated master server.");
+            }
+            else if (!XenoIndustrySignpost.IsConnected(bodyName))
             {
                 GUILayout.Label("Cannot connect to Clusterio master server!");
 
-                GUILayout.Label("Error: " + ClusterioConnector.GetConnectionError());
+                GUILayout.Label("Error: " + XenoIndustrySignpost.GetConnectionError(bodyName));
 
                 if (GUILayout.Button("Refresh connection"))
                 {
-                    StartCoroutine(ClusterioConnector.RefreshConnection());
+                    XenoIndustrySignpost.RefreshConnection(bodyName);
                 }
             }
             else
@@ -814,7 +783,7 @@ namespace XenoIndustry
 
                         if (GUILayout.Button("Refresh Clusterio inventory"))
                         {
-                            StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+                            StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
                         }
                     }
                     else

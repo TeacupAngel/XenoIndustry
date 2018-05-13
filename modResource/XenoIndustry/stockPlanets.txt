@@ -1,0 +1,17 @@
+The following celestial bodies can be used as destinations in the signpost.json file:
+
+Kerbin
+Mun
+Minmus
+Moho
+Eve
+Duna
+Ike
+Laythe
+Vall
+Bop
+Tylo
+Gilly
+Pol
+Dres
+Eeloo

@@ -971,16 +971,6 @@ namespace SimpleJSON
             }
         }
 
-        // Rahjital 1-5-2018
-        public IEnumerable<KeyValuePair<string, JSONNode>> ChildrenKeyValuePairs
-        {
-            get
-            {
-                foreach (KeyValuePair<string, JSONNode> N in m_Dict)
-                    yield return N;
-            }
-        }
-
         public IEnumerator GetEnumerator()
         {
             foreach (KeyValuePair<string, JSONNode> N in m_Dict)

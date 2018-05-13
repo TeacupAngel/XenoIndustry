@@ -72,36 +72,9 @@ namespace XenoIndustry
 
             StreamReader reader = new StreamReader(MOD_PATH + "config.json");
 
-            string masterIP = "localhost";
-            string masterPort = "8080";
-            string masterAuthToken = null;
-
             if (reader != null)
             {
                 JSONNode modConfig = JSON.Parse(reader.ReadToEnd());
-
-                if (modConfig["masterIP"] != null)
-                {
-                    Debug.Log(String.Format("XenoIndustryCore: masterIP is {0}", modConfig["masterIP"]));
-                    masterIP = modConfig["masterIP"];
-
-                    if (masterIP.ToLowerInvariant() != "localhost")
-                    {
-                        masterIP = "http://" + masterIP;
-                    }
-                }
-
-                if (modConfig["masterPort"] != null)
-                {
-                    Debug.Log(String.Format("XenoIndustryCore: masterPort is {0}", modConfig["masterPort"]));
-                    masterPort = modConfig["masterPort"];
-                }
-
-                if (modConfig["masterAuthToken"] != null)
-                {
-                    Debug.Log(String.Format("XenoIndustryCore: masterAuthToken is {0}", modConfig["masterAuthToken"]));
-                    masterAuthToken = modConfig["masterAuthToken"];
-                }
 
                 if (modConfig["debug"] != null)
                 {
@@ -110,8 +83,7 @@ namespace XenoIndustry
                 }
             }
 
-            ClusterioConnector.ConntectToMonoBehaviour(this);
-            ClusterioConnector.ConntectToMaster(masterIP, masterPort, masterAuthToken);
+            XenoIndustrySignpost.LoadSignpost();
 
             windowRect = new Rect(Screen.width / 2 - 150, Screen.height / 2 - 150, 300, 100);
 
@@ -125,7 +97,7 @@ namespace XenoIndustry
 
         private void OnGUIAppLauncherReady()
         {
-            if (ApplicationLauncher.Ready && stockToolbarButton == null && debug)
+            if (ApplicationLauncher.Ready && stockToolbarButton == null && debug && H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>() != null &&  H﻿ighLogic.CurrentGame.Parameters.CustomParams<XenoIndustryCoreGameParameters>().enabled)
             {
                 stockToolbarButton = ApplicationLauncher.Instance.AddModApplication(
                     OnToolbarClusterioButtonOn,
@@ -164,7 +136,7 @@ namespace XenoIndustry
         {
             if (windowVisible)
             {
-                windowRect = GUILayout.Window(22347, windowRect, OnClusterioWindowInternal, "Clusterio Debug Interface");
+                windowRect = GUILayout.Window(22347, windowRect, OnCoreWindowInternal, "XenoIndustry Debug Interface");
             }
         }
 
@@ -177,31 +149,57 @@ namespace XenoIndustry
                 // Periodically update Clusterio inventory if not ingame
                 if (HighLogic.LoadedScene == GameScenes.SPACECENTER || HighLogic.LoadedScene == GameScenes.EDITOR || HighLogic.LoadedScene == GameScenes.TRACKSTATION)
                 {
-                    if (ClusterioConnector.IsConnected())
+                    string bodyName;
+
+                    if (FlightGlobals.ActiveVessel != null)
                     {
-                        StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+                        bodyName = FlightGlobals.ActiveVessel.mainBody.bodyName;
                     }
                     else
                     {
-                        StartCoroutine(ClusterioConnector.RefreshConnection());
+                        bodyName = "Kerbin";
+                    }
+
+                    if (XenoIndustrySignpost.IsConnected(bodyName))
+                    {
+                        StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
+                    }
+                    else
+                    {
+                        XenoIndustrySignpost.RefreshConnection(bodyName);
                     }
                 }
             }
         }
 
-        private void OnClusterioWindowInternal(int id)
+        private void OnCoreWindowInternal(int id)
         {
             GUILayout.BeginVertical();
 
-            if (!ClusterioConnector.IsConnected())
+            string bodyName;
+
+            if (FlightGlobals.ActiveVessel != null)
+            {
+                bodyName = FlightGlobals.ActiveVessel.mainBody.bodyName;
+            }
+            else
+            {
+                bodyName = "Kerbin";
+            }
+
+            if (!XenoIndustrySignpost.BodyHasServer(bodyName))
+            {
+                GUILayout.Label("This celestial body has no associated master server.");
+            }
+            else if (!XenoIndustrySignpost.IsConnected(bodyName))
             {
                 GUILayout.Label("Cannot connect to Clusterio master server!");
 
-                GUILayout.Label("Error: " + ClusterioConnector.GetConnectionError());
+                GUILayout.Label("Error: " + XenoIndustrySignpost.GetConnectionError(bodyName));
 
                 if (GUILayout.Button("Refresh connection"))
                 {
-                    StartCoroutine(ClusterioConnector.RefreshConnection());
+                    XenoIndustrySignpost.RefreshConnection(bodyName);
                 }
             }
             else
@@ -240,7 +238,7 @@ namespace XenoIndustry
 
                     if (GUILayout.Button("Refresh Clusterio inventory"))
                     {
-                        StartCoroutine(ClusterioUtil.GetClusterioInventory(clusterioInventory));
+                        StartCoroutine(XenoIndustrySignpost.GetClusterioInventory(bodyName, clusterioInventory));
                     }
                 }
 
@@ -248,20 +246,25 @@ namespace XenoIndustry
                 {
                     if (GUILayout.Button("Add 1000 rocket component items"))
                     {
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("low-density-structure", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("rocket-control-unit", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("solar-panel", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("uranium-238", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("accumulator", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("electric-mining-drill", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("electric-furnace", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("radar", 1000));
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("processing-unit", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "low-density-structure", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "rocket-control-unit", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "solar-panel", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "uranium-238", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "accumulator", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "electric-mining-drill", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "electric-furnace", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "radar", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "processing-unit", 1000));
                     }
 
-                    if (GUILayout.Button("Add 1000 rocket fuel"))
+                    if (GUILayout.Button("Add 1000 rocket fuel items"))
                     {
-                        StartCoroutine(ClusterioUtil.AddItemsToClusterio("rocket-fuel", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "rocket-fuel", 1000));
+                        StartCoroutine(XenoIndustrySignpost.AddItemsToClusterio(bodyName, "explosives", 1000));
+                    }
+                    if (GUILayout.Button("Write out CelestialBody names"))
+                    {
+                        XenoIndustrySignpost.WriteOutCelestialBodies();
                     }
                 }
 
