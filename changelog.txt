@@ -1,5 +1,2 @@
 0.1.0
 - Initial release
-
-0.2.0
-- XenoIndustry can now be enabled on a per-save basis through the difficulty menu. Default setting is OFF
